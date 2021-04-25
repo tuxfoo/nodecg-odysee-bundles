@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+	<style>
+		.monospace {
+			font-family: monospace;
+		}
+	</style>
+</head>
+<body>
+  <div id=odysee-wrap>
+  	<p>
+      Hello, This bundle activates alerts when some one tips using odysee hyperchat.
+    </p>
+    <p>
+      To get started, go to your livestream and get its claim id(Not stream key) and paste it into claim id box.
+    </p>
+    <p>
+      Then add the name of the default alert that you set up in simple-alerts
+    </p>
+    <p>
+      Then start adding triggers, place the name of the alert to be activated and the trigger type into each trigger.
+    </p>
+  </div>
+  <form id="newTrigger">
+     <button type="submit">Add New Trigger</button>
+  </form>
+	<script>
+    const claim_id = nodecg.Replicant('claim_id');
+    const triggers = nodecg.Replicant('triggers');
+    const defaultTrigger = nodecg.Replicant('defaultTrigger');
+    const test = nodecg.Replicant('test');
+
+    const div = document.getElementById('odysee-wrap');
+    var form = document.createElement('form');
+    form.setAttribute('id', 'claim_id');
+    var claimid = document.createElement('label');
+    claimid.setAttribute('for', 'claim_id');
+    var claimidLabel = document.createTextNode("claim id: ");
+    claimid.appendChild(claimidLabel);
+    var claimidInput = document.createElement('input');
+    claimidInput.setAttribute('id', 'claimidInput');
+
+    var defaultAlert = document.createElement('label');
+    defaultAlert.setAttribute('for', 'defaultAlert');
+    var defaultLabel = document.createTextNode("Default Alert: ");
+    defaultAlert.appendChild(defaultLabel);
+    var defaultInput = document.createElement('input');
+    defaultInput.setAttribute('id', 'defaultInput');
+
+    var defaultSubmit = document.createElement('button');
+    defaultSubmit.setAttribute('type', 'submit');
+    defaultSubmit.setAttribute('id', 'defaultBtn');
+    var defaultBtnLabel = document.createTextNode("Submit");
+    defaultSubmit.appendChild(defaultBtnLabel);
+
+    var testAmount = document.createElement('label');
+    testAmount.setAttribute('for', 'testAmount');
+    var testLabel = document.createTextNode("Test Amount for Triggers: ");
+    testAmount.appendChild(testLabel);
+    var testInput = document.createElement('input');
+    testInput.setAttribute('id', 'testInput');
+
+    var testBtn = document.createElement('button');
+    testBtn.setAttribute('type', 'submit');
+    testBtn.setAttribute('id', 'testBtn');
+    var testBtnLabel = document.createTextNode("TEST");
+    testBtn.appendChild(testBtnLabel);
+
+    form.appendChild(claimid);
+    form.appendChild(claimidInput);
+    form.appendChild(document.createElement("br"));
+    form.appendChild(defaultAlert);
+    form.appendChild(defaultInput);
+    form.appendChild(document.createElement("br"));
+    form.appendChild(defaultSubmit);
+    form.appendChild(document.createElement("br"));
+    form.appendChild(testAmount);
+    form.appendChild(testInput);
+    form.appendChild(document.createElement("br"));
+    form.appendChild(testBtn);
+    form.appendChild(document.createElement("br"));
+    div.appendChild(form);
+
+    NodeCG.waitForReplicants(triggers, claim_id, defaultTrigger, test).then(() => {
+      document.getElementById('defaultInput').value = defaultTrigger.value;
+      document.getElementById('claimidInput').value = claim_id.value;
+      triggers.value.forEach(showPanels);
+    });
+
+    function showPanels(value, index, array) {
+
+      var form = document.createElement('form');
+      form.setAttribute('id', 'form' + index);
+      var alert = document.createElement('label');
+      alert.setAttribute('for', 'alert' + index);
+      var alertLabel = document.createTextNode("Alert Name: ");
+      alert.appendChild(alertLabel);
+      var alertInput = document.createElement('input');
+      alertInput.setAttribute('id', 'alertinput' + index);
+
+      var amount = document.createElement('label');
+      amount.setAttribute('for', 'amount' + index);
+      var amountLabel = document.createTextNode("Amount: ");
+      amount.appendChild(amountLabel);
+      var amountInput = document.createElement('input');
+      amountInput.setAttribute('id', 'amountinput' + index);
+
+      // Menu for logic type
+      var selectLogic = document.createElement('select');
+      selectLogic.setAttribute('id', 'selectLogic' + index);
+      var selectLogicLabel = document.createElement('label');
+      selectLogicLabel.setAttribute('for', 'selectLogic' + index);
+      selectLogicLabel.appendChild(document.createTextNode('Logic Type: '));
+
+      // Logic Type options
+      var logicOption = document.createElement('option');
+      logicOption.setAttribute('value', 'greaterthan');
+      var logicOptionLabel = document.createTextNode('Greater Than');
+      logicOption.appendChild(logicOptionLabel);
+      selectLogic.appendChild(logicOption);
+
+      var logicOption = document.createElement('option');
+      logicOption.setAttribute('value', 'equals');
+      var logicOptionLabel = document.createTextNode('equals');
+      logicOption.appendChild(logicOptionLabel);
+      selectLogic.appendChild(logicOption);
+
+      var logicSubmit = document.createElement('button');
+      logicSubmit.setAttribute('type', 'submit');
+      logicSubmit.setAttribute('id', 'logicBtn' + index);
+      var buttonLabel = document.createTextNode("Submit");
+      logicSubmit.appendChild(buttonLabel);
+      var logicDelete = document.createElement('button');
+      var deleteWrap = document.createElement('div');
+      logicDelete.setAttribute('id', 'deleteBtn' + index);
+      var deleteLabel = document.createTextNode("DELETE");
+      logicDelete.appendChild(deleteLabel);
+
+      form.appendChild(alert);
+      form.appendChild(alertInput);
+      form.appendChild(document.createElement("br"));
+      form.appendChild(selectLogicLabel);
+      form.appendChild(selectLogic);
+      form.appendChild(amount);
+      form.appendChild(amountInput);
+      form.appendChild(document.createElement("br"));
+      form.appendChild(logicSubmit);
+      form.appendChild(logicDelete);
+      form.appendChild(document.createElement("br"));
+      div.appendChild(form);
+
+      document.getElementById('alertinput' + index).value = value.name;
+      document.getElementById('amountinput' + index).value = value.amount;
+      document.getElementById('selectLogic' + index).value = value.type;
+
+      // Delete alert
+      document.getElementById('deleteBtn' + index).addEventListener('click', e => {
+        console.log("remove " + index);
+        triggers.value.splice(index, 1);
+      });
+
+      document.getElementById('logicBtn' + index).addEventListener('click', e => {
+        e.preventDefault();
+        console.log("Submit Trigger " + index)
+          value.name = document.getElementById('alertinput' + index).value;
+          value.amount = document.getElementById('amountinput' + index).value;
+          value.type = document.getElementById('selectLogic' + index).value;
+      });
+    }
+
+    document.getElementById('newTrigger').addEventListener('click', e => {
+      triggers.value.push({name: 'Alert1', type: 'equals', amount: 0});
+    });
+
+    document.getElementById('testBtn').addEventListener('click', e => {
+      test.value = document.getElementById('testInput').value;
+    });
+
+    document.getElementById('defaultBtn').addEventListener('click', e => {
+        console.log("Submit Defaults ")
+        claim_id.value = document.getElementById('claimidInput').value;
+        defaultTrigger.value = document.getElementById('defaultInput').value;
+    });
+	</script>
+</body>
+</html>
