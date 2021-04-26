@@ -6,7 +6,7 @@ module.exports = function (nodecg) {
 	nodecg.Replicant('claim_id', { defaultValue: "Place claim id of your livestream here", persistent: true });
 	nodecg.Replicant('defaultTrigger', { defaultValue: "Alert1" });
 	nodecg.Replicant('triggers', { defaultValue: [{name: 'Alert1', amount: '', type: "greaterthan" }] });
-	nodecg.Replicant('test', { defaultValue: 0, persistent: false });
+	nodecg.Replicant('test', { defaultValue: { amount: 0, change: 0 }, persistent: false });
 
 	const claim_id = nodecg.Replicant('claim_id');
 	const defaultTrigger = nodecg.Replicant('defaultTrigger');
@@ -62,8 +62,8 @@ module.exports = function (nodecg) {
 
 	test.on('change', value => {
 		var alertName = defaultTrigger.value;
-		alertName = checkTriggers(value, alertName);
-		activateAlert(alertName, "Slyver Testallone", value);
+		alertName = checkTriggers(value.amount, alertName);
+		activateAlert(alertName, "Slyver Testallone", value.amount);
 	});
 
 	// Connection opened

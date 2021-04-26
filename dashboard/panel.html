@@ -175,7 +175,7 @@
     });
 
     document.getElementById('testBtn').addEventListener('click', e => {
-      test.value = document.getElementById('testInput').value;
+      test.value = { amount: document.getElementById('testInput').value, change: test.value.change + 1 };
     });
 
     document.getElementById('defaultBtn').addEventListener('click', e => {
