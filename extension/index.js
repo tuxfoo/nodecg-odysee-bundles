@@ -12,7 +12,7 @@ module.exports = function (nodecg) {
 	const defaultTrigger = nodecg.Replicant('defaultTrigger');
 	const triggers = nodecg.Replicant('triggers');
 	const test = nodecg.Replicant('test');
-	const socket = new WebSocket('wss://comments.lbry.com/api/v2/live-chat/subscribe?subscription_id=' + claim_id.value);
+	let socket = new WebSocket('wss://comments.lbry.com/api/v2/live-chat/subscribe?subscription_id=' + claim_id.value);
 	const equals = [];
 
 	function activateAlert(alertname, username, amount) {
@@ -72,33 +72,38 @@ module.exports = function (nodecg) {
 		}
 	});
 
+	claim_id.on('change', value => {
+		if (socket.readyState == WebSocket.OPEN) {
+			socket.close();
+			socket = new WebSocket('wss://comments.lbry.com/api/v2/live-chat/subscribe?subscription_id=' + claim_id.value);
+		}
+		// Connection opened
+		// Alojz helped with websockets code
+		socket.addEventListener('open', function (event) {
+				socket.send('Hello LBRY!');
+		});
+		// Listen for messages
+		socket.addEventListener('message', function (event) {
+			var comment=JSON.parse(event.data);
+			console.log(comment.data.comment.comment);
+			// If comment has support
+			if(comment.data.comment.support_amount>0) {
+				console.log("Has tip");
+				var userName = comment.data.comment.channel_name;
+				var alertName = defaultTrigger.value;
+				var amount = comment.data.comment.support_amount
+
+				addToTicker(userName, amount);
+				alertName = checkTriggers(amount, alertName);
+				activateAlert(alertName, userName, amount);
+			}
+		});
+	});
+
 	test.on('change', value => {
 		var alertName = defaultTrigger.value;
 		alertName = checkTriggers(value.amount, alertName);
 		activateAlert(alertName, "Slyver Testallone", value.amount);
-	});
-
-	// Connection opened
-	// Alojz helped with websockets code
-	socket.addEventListener('open', function (event) {
-			socket.send('Hello LBRY!');
-	});
-
-	// Listen for messages
-	socket.addEventListener('message', function (event) {
-		var comment=JSON.parse(event.data);
-		console.log(comment.data.comment.comment);
-		// If comment has support
-		if(comment.data.comment.support_amount>0) {
-			console.log("Has tip");
-			var userName = comment.data.comment.channel_name;
-			var alertName = defaultTrigger.value;
-			var amount = comment.data.comment.support_amount
-
-			addToTicker(userName, amount);
-			alertName = checkTriggers(amount, alertName);
-			activateAlert(alertName, userName, amount);
-		}
 	});
 
 };
