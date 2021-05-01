@@ -63,7 +63,7 @@
     testInput.setAttribute('id', 'testInput');
 
     var testBtn = document.createElement('button');
-    testBtn.setAttribute('type', 'submit');
+    //testBtn.setAttribute('type', 'submit');
     testBtn.setAttribute('id', 'testBtn');
     var testBtnLabel = document.createTextNode("TEST");
     testBtn.appendChild(testBtnLabel);
@@ -83,10 +83,12 @@
     form.appendChild(document.createElement("br"));
     div.appendChild(form);
 
-    NodeCG.waitForReplicants(triggers, claim_id, defaultTrigger, test).then(() => {
+    NodeCG.waitForReplicants(triggers, claim_id, defaultTrigger).then(() => {
       document.getElementById('defaultInput').value = defaultTrigger.value;
       document.getElementById('claimidInput').value = claim_id.value;
-      triggers.value.forEach(showPanels);
+      if (triggers.value) {
+        triggers.value.forEach(showPanels);
+      }
     });
 
     function showPanels(value, index, array) {

@@ -27,6 +27,18 @@ module.exports = function (nodecg) {
 		});
 	}
 
+	function addToTicker(username, amount) {
+		var myJSONObject = {"name": username, "amount": amount};
+		request({
+				url: 'http://localhost:9090/simple-donation-ticker/ticker',
+				method: "POST",
+				json: true,
+				body: myJSONObject
+		}, function (error, response, body){
+				console.log("Done");
+		});
+	}
+
 	function checkTriggers(amount, alertName) {
 		equals.forEach(isEquals);
 		// Check if alert is equal too a trigger
@@ -37,8 +49,8 @@ module.exports = function (nodecg) {
 		}
 		if ( alertName == defaultTrigger.value ) {
 			// Check greater than starting from largest number.
-			var sorted = triggers.value;
-			sorted.sort(function(a, b){return b.amount - a.amount});
+			var sorted = [...triggers.value];
+			sorted.sort( function (a, b) { return b.amount - a.amount } );
 			for (const value of sorted) {
 				if ( value.type != "equals" && parseFloat(amount) >= parseFloat(value.amount) ) {
 					alertName = value.name;
@@ -83,6 +95,7 @@ module.exports = function (nodecg) {
 			var alertName = defaultTrigger.value;
 			var amount = comment.data.comment.support_amount
 
+			addToTicker(userName, amount);
 			alertName = checkTriggers(amount, alertName);
 			activateAlert(alertName, userName, amount);
 		}
