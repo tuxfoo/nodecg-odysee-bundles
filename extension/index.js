@@ -13,6 +13,7 @@ module.exports = function (nodecg) {
 	const triggers = nodecg.Replicant('triggers');
 	const test = nodecg.Replicant('test');
 	let socket = new WebSocket('wss://comments.lbry.com/api/v2/live-chat/subscribe?subscription_id=' + claim_id.value);
+	const checkconnection = setInterval(isClosed, 60000);
 	const equals = [];
 
 	function activateAlert(alertname, username, amount) {
@@ -31,6 +32,18 @@ module.exports = function (nodecg) {
 		var myJSONObject = {"name": username, "amount": amount};
 		request({
 				url: 'http://localhost:9090/simple-donation-ticker/ticker',
+				method: "POST",
+				json: true,
+				body: myJSONObject
+		}, function (error, response, body){
+				console.log("Done");
+		});
+	}
+
+	function addToGoal(amount) {
+		var myJSONObject = {"amount": amount};
+		request({
+				url: 'http://localhost:9090/simple-goals/goal',
 				method: "POST",
 				json: true,
 				body: myJSONObject
@@ -72,7 +85,18 @@ module.exports = function (nodecg) {
 		}
 	});
 
+// https://chainquery.lbry.com/api/sql?query=SELECT%20*%20FROM%20claim%20WHERE%20publisher_id=%22fec4a430e6732406851281ef005bbef751ea8b23%22%20AND%20bid_state%3C%3E%22Spent%22%252
 	claim_id.on('change', value => {
+		reconnect();
+	});
+
+	function isClosed() {
+		if (socket.readyState != WebSocket.OPEN) {
+			reconnect();
+		}
+	}
+
+	function reconnect() {
 		if (socket.readyState == WebSocket.OPEN) {
 			socket.close();
 			socket = new WebSocket('wss://comments.lbry.com/api/v2/live-chat/subscribe?subscription_id=' + claim_id.value);
@@ -93,12 +117,13 @@ module.exports = function (nodecg) {
 				var alertName = defaultTrigger.value;
 				var amount = comment.data.comment.support_amount
 
+				addToGoal(amount);
 				addToTicker(userName, amount);
 				alertName = checkTriggers(amount, alertName);
 				activateAlert(alertName, userName, amount);
 			}
 		});
-	});
+	}
 
 	test.on('change', value => {
 		var alertName = defaultTrigger.value;
