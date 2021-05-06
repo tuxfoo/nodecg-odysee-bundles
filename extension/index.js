@@ -1,4 +1,5 @@
 const WebSocket = require('ws');
+const got = require('got');
 const request = require('request');
 'use strict';
 
@@ -8,12 +9,14 @@ module.exports = function (nodecg) {
 	nodecg.Replicant('triggers', { defaultValue: [{name: 'Alert1', amount: '', type: "greaterthan" }] });
 	nodecg.Replicant('test', { defaultValue: { amount: 0, change: 0 }, persistent: false });
 
+
 	const claim_id = nodecg.Replicant('claim_id');
+	let socket = new WebSocket('wss://comments.lbry.com/api/v2/live-chat/subscribe?subscription_id=' + claim_id.value);
 	const defaultTrigger = nodecg.Replicant('defaultTrigger');
 	const triggers = nodecg.Replicant('triggers');
 	const test = nodecg.Replicant('test');
-	let socket = new WebSocket('wss://comments.lbry.com/api/v2/live-chat/subscribe?subscription_id=' + claim_id.value);
-	const checkconnection = setInterval(isClosed, 60000);
+
+	//const checkconnection = setInterval(isClosed, 60000);
 	const equals = [];
 
 	function activateAlert(alertname, username, amount) {
@@ -24,7 +27,7 @@ module.exports = function (nodecg) {
 				json: true,
 				body: myJSONObject
 		}, function (error, response, body){
-				console.log("Done");
+				console.log("Pushed Alert");
 		});
 	}
 
@@ -36,7 +39,7 @@ module.exports = function (nodecg) {
 				json: true,
 				body: myJSONObject
 		}, function (error, response, body){
-				console.log("Done");
+				console.log("Pushed to ticker");
 		});
 	}
 
@@ -48,7 +51,7 @@ module.exports = function (nodecg) {
 				json: true,
 				body: myJSONObject
 		}, function (error, response, body){
-				console.log("Done");
+				console.log("Pushed to goal");
 		});
 	}
 
@@ -85,22 +88,44 @@ module.exports = function (nodecg) {
 		}
 	});
 
-// https://chainquery.lbry.com/api/sql?query=SELECT%20*%20FROM%20claim%20WHERE%20publisher_id=%22fec4a430e6732406851281ef005bbef751ea8b23%22%20AND%20bid_state%3C%3E%22Spent%22%252
 	claim_id.on('change', value => {
-		reconnect();
+		nodecg.log.info("Trying to connect to odysee");
+		if (socket.readyState === WebSocket.OPEN) {
+			socket.close();
+		} else {
+			getClaimid();
+		}
 	});
 
-	function isClosed() {
-		if (socket.readyState != WebSocket.OPEN) {
-			reconnect();
+	function isOpen() {
+		if (socket.readyState === WebSocket.OPEN) {
+			socket.close();
 		}
 	}
 
-	function reconnect() {
-		if (socket.readyState == WebSocket.OPEN) {
-			socket.close();
-			socket = new WebSocket('wss://comments.lbry.com/api/v2/live-chat/subscribe?subscription_id=' + claim_id.value);
-		}
+	function getClaimid() {
+		var url = "https://chainquery.lbry.com/api/sql?query=SELECT%20*%20FROM%20claim%20WHERE%20publisher_id=%22" + claim_id.value + "%22%20AND%20bid_state%3C%3E%22Spent%22%20AND%20claim_type=1%20AND%20source_hash%20IS%20NULL%20ORDER%20BY%20id%20DESC%20LIMIT%201";
+		var currentClaimid = (async () => {
+			try {
+					const response = await got(url, { json: true });
+					if (response.body.data.length === 0) {
+						nodecg.log.info("Array is empty, assuming claim id is for livestream.");
+						reconnect(claim_id.value);
+					} else {
+						nodecg.log.info("Array should have claim id");
+						nodecg.log.info(response.body.data[0].claim_id);
+						reconnect(response.body.data[0].claim_id);
+					}
+			} catch (error) {
+				nodecg.log.info("Failed to fetch claim id from publisher id, assuming claim id is for livestream.")
+				reconnect(claim_id.value);
+			}
+		})();
+	}
+
+	function reconnect(claimid) {
+		nodecg.log.info("Connecting using " + claimid);
+		socket = new WebSocket('wss://comments.lbry.com/api/v2/live-chat/subscribe?subscription_id=' + claimid);
 		// Connection opened
 		// Alojz helped with websockets code
 		socket.addEventListener('open', function (event) {
@@ -109,7 +134,7 @@ module.exports = function (nodecg) {
 		// Listen for messages
 		socket.addEventListener('message', function (event) {
 			var comment=JSON.parse(event.data);
-			console.log(comment.data.comment.comment);
+			nodecg.log.info(comment.data.comment.comment);
 			// If comment has support
 			if(comment.data.comment.support_amount>0) {
 				console.log("Has tip");
@@ -122,6 +147,17 @@ module.exports = function (nodecg) {
 				alertName = checkTriggers(amount, alertName);
 				activateAlert(alertName, userName, amount);
 			}
+		});
+
+		socket.addEventListener('close', function (event) {
+			setTimeout(function() {
+					nodecg.log.info("Lost Connection....")
+					getClaimid();
+			}, 5000);
+		});
+
+		socket.addEventListener('error', function (event) {
+      socket.close();
 		});
 	}
 
