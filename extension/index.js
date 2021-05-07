@@ -16,7 +16,6 @@ module.exports = function (nodecg) {
 	const triggers = nodecg.Replicant('triggers');
 	const test = nodecg.Replicant('test');
 
-	//const checkconnection = setInterval(isClosed, 60000);
 	const equals = [];
 
 	function activateAlert(alertname, username, amount) {
@@ -150,13 +149,14 @@ module.exports = function (nodecg) {
 		});
 
 		socket.addEventListener('close', function (event) {
+			nodecg.log.info("Lost Connection; Will attempt to reconnect shortly....");
 			setTimeout(function() {
-					nodecg.log.info("Lost Connection....")
 					getClaimid();
 			}, 5000);
 		});
 
 		socket.addEventListener('error', function (event) {
+			nodecg.log.info("Error, cannot connect to Odysee.");
       socket.close();
 		});
 	}
