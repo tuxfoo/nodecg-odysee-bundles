@@ -125,10 +125,14 @@ module.exports = function (nodecg) {
 				json: true,
 				body: myJSONObject
 		}, function (error, response, body){
-				nodecg.log.info("Preloaded Comment");
+				nodecg.log.info("Preloading Comment");
 			(async function() {
-					for (var i = 0, j = body.result.items.length - 1; i < body.result.items.length - 1; i++, j--) {
-						await addComment(body.result.items[j]);
+				try {
+						for (var i = 0, j = body.result.items.length - 1; i < body.result.items.length - 1; i++, j--) {
+							await addComment(body.result.items[j]);
+						}
+					} catch {
+						nodecg.log.info("There does not appear to be any prevoius comments to load. Skipping...");
 					}
 				})();
 		});
