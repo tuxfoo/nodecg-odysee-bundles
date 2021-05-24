@@ -1,0 +1,12 @@
+[submodule "bundles/simple-chat"]
+	path = bundles/simple-chat
+	url = https://github.com/tuxfoo/simple-chat.git
+[submodule "bundles/simple-alerts"]
+	path = bundles/simple-alerts
+	url = https://github.com/tuxfoo/simple-alerts.git
+[submodule "bundles/simple-donation-ticker"]
+	path = bundles/simple-donation-ticker
+	url = https://github.com/tuxfoo/simple-donation-ticker
+[submodule "bundles/simple-goals"]
+	path = bundles/simple-goals
+	url = https://github.com/tuxfoo/simple-goals.git

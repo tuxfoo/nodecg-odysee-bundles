@@ -1,8 +1,9 @@
-# nodecg-odysee-bundles
+# odysee-simple-alerts-connector
 
-This is a collection of my nodecg bundles for Odysee live streaming.
+This nodecg bundle listens to Odysee hyperchat and in in-form's other bundles of events.
+This bundle is also used to set up triggers for simple-alerts.
 
-This bundle has:
+This bundle also connects to the following nodecg bundles such as:
 * simple-alerts
 * simple-donation-ticker
 * simple-chat
