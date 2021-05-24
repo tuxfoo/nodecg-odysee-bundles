@@ -128,7 +128,7 @@ module.exports = function (nodecg) {
 				nodecg.log.info("Preloading Comment");
 			(async function() {
 				try {
-						for (var i = 0, j = body.result.items.length - 1; i < body.result.items.length - 1; i++, j--) {
+						for (var i = 0, j = body.result.items.length - 1; i < body.result.items.length; i++, j--) {
 							await addComment(body.result.items[j]);
 						}
 					} catch {
@@ -136,7 +136,6 @@ module.exports = function (nodecg) {
 					}
 				})();
 		});
-
 	}
 
 	//get channel/username from comment id.
