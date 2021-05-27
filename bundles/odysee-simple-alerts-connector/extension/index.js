@@ -18,7 +18,7 @@ module.exports = function (nodecg) {
 	// Fail safe for disconnections
 	const reload = setInterval(isOpen, 300000);
 	const equals = [];
-
+	let preload = false;
 // simple-alerts Rest API Request to add on alert to queue
 	function activateAlert(alertname, username, amount, attach) {
 		if (attach != "") {
@@ -126,6 +126,7 @@ module.exports = function (nodecg) {
 	}
 
 	function preloadChat(claimid) {
+		preload = true;
 		var url = 'https://comments.lbry.com/api'
 		// Get comment history
 		var myJSONObject = `{
@@ -235,30 +236,39 @@ module.exports = function (nodecg) {
 		var url = "https://chainquery.lbry.com/api/sql?query=SELECT%20*%20FROM%20claim%20WHERE%20publisher_id=%22" + claim_id.value + "%22%20AND%20bid_state%3C%3E%22Spent%22%20AND%20claim_type=1%20AND%20source_hash%20IS%20NULL%20ORDER%20BY%20id%20DESC%20LIMIT%201";
 		var currentClaimid = (async () => {
 			try {
-					const response = await got(url, { json: true, timeout: 7000, retry: 1, allowGetBody: true, responseType: 'json' });
+					const response = await got(url, { json: true, timeout: 5000, retry: 2, allowGetBody: true, responseType: 'json' });
 					if (response.body.data.length === 0) {
 						nodecg.log.info("Array is empty, assuming claim id is for livestream.");
+						if (preload == false) {
+							preloadChat(claim_id.value);
+						}
 						reconnect(claim_id.value);
 					} else {
 						nodecg.log.info("Array should have claim id");
 						nodecg.log.info(response.body.data[0].claim_id);
+						if (preload == false) {
+							preloadChat(response.body.data[0].claim_id);
+						}
 						reconnect(response.body.data[0].claim_id);
 					}
 			} catch (error) {
 				nodecg.log.info("Failed to fetch claim id from publisher id, assuming claim id is for livestream.")
+				if (preload == false) {
+					preloadChat(claim_id.value);
+				}
 				reconnect(claim_id.value);
 			}
 		})();
 	}
 
 	function reconnect(claimid) {
-		preloadChat(claim_id);
 		nodecg.log.info("Connecting using " + claimid);
 		socket = new WebSocket('wss://comments.lbry.com/api/v2/live-chat/subscribe?subscription_id=' + claimid);
 		// Connection opened
 		// Alojz helped with websockets code
 		socket.addEventListener('open', function (event) {
 				socket.send('Hello LBRY!');
+				nodecg.log.info("Connected");
 		});
 		// Listen for messages
 		socket.addEventListener('message', function (event) {
