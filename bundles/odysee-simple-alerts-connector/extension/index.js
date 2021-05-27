@@ -139,12 +139,12 @@ module.exports = function (nodecg) {
 				"visible": true
 			}
 		}`;
-		const response = got(
+		const response = got.post(
 			url,
 			{
-				timeout: 1000, retry: 1,
+				timeout: 5000, retry: 1,
 				headers: {'Content-Type': 'application/json' },
-				body: myJSONObject, json: true
+				body: myJSONObject, responseType: 'json'
 			}
 		).then(res => {
 			nodecg.log.info("Preloading Comments");
@@ -161,7 +161,8 @@ module.exports = function (nodecg) {
 					}
 				})();
 		}).catch(err => {
-			nodecg.log.info("Timed out, not adding past message. LBRY API server might be down.");
+			nodecg.log.info(err);
+			nodecg.log.info("Timed out, not adding past messages. LBRY API server might be down.");
 		});
 	}
 
@@ -181,9 +182,9 @@ module.exports = function (nodecg) {
 		const response = await got.post(
 			url,
 			{
-				timeout: 1000, retry: 1,
+				timeout: 2000, retry: 1,
 				headers: {'Content-Type': 'application/json' },
-				body: myJSONObject, json: true
+				body: myJSONObject, responseType: 'json'
 			}
 		).then(res => {
 			username = res.body.result.channel_name;
@@ -234,26 +235,24 @@ module.exports = function (nodecg) {
 		var url = "https://chainquery.lbry.com/api/sql?query=SELECT%20*%20FROM%20claim%20WHERE%20publisher_id=%22" + claim_id.value + "%22%20AND%20bid_state%3C%3E%22Spent%22%20AND%20claim_type=1%20AND%20source_hash%20IS%20NULL%20ORDER%20BY%20id%20DESC%20LIMIT%201";
 		var currentClaimid = (async () => {
 			try {
-					const response = await got(url, { json: true, timeout: 2000, retry: 1 });
+					const response = await got(url, { json: true, timeout: 7000, retry: 1, allowGetBody: true, responseType: 'json' });
 					if (response.body.data.length === 0) {
 						nodecg.log.info("Array is empty, assuming claim id is for livestream.");
-						//preloadChat(claim_id.value);
 						reconnect(claim_id.value);
 					} else {
 						nodecg.log.info("Array should have claim id");
 						nodecg.log.info(response.body.data[0].claim_id);
-						//preloadChat(response.body.data[0].claim_id);
 						reconnect(response.body.data[0].claim_id);
 					}
 			} catch (error) {
 				nodecg.log.info("Failed to fetch claim id from publisher id, assuming claim id is for livestream.")
-				//preloadChat(claim_id.value);
 				reconnect(claim_id.value);
 			}
 		})();
 	}
 
 	function reconnect(claimid) {
+		preloadChat(claim_id);
 		nodecg.log.info("Connecting using " + claimid);
 		socket = new WebSocket('wss://comments.lbry.com/api/v2/live-chat/subscribe?subscription_id=' + claimid);
 		// Connection opened
