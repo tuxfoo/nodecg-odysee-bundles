@@ -131,6 +131,14 @@
       logicOption.appendChild(logicOptionLabel);
       selectLogic.appendChild(logicOption);
 
+      var attach = document.createElement('label');
+      attach.setAttribute('for', 'attach' + index);
+      var attachLabel = document.createTextNode("Attach User Message: ");
+      attach.appendChild(attachLabel);
+      var attachMsg = document.createElement('input');
+      attachMsg.setAttribute('id', 'attach' + index);
+      attachMsg.setAttribute('type', 'checkbox');
+
       var logicSubmit = document.createElement('button');
       logicSubmit.setAttribute('type', 'submit');
       logicSubmit.setAttribute('id', 'logicBtn' + index);
@@ -150,6 +158,9 @@
       form.appendChild(amount);
       form.appendChild(amountInput);
       form.appendChild(document.createElement("br"));
+      form.appendChild(attach);
+      form.appendChild(attachMsg);
+      form.appendChild(document.createElement("br"));
       form.appendChild(logicSubmit);
       form.appendChild(logicDelete);
       form.appendChild(document.createElement("br"));
@@ -158,7 +169,14 @@
       document.getElementById('alertinput' + index).value = value.name;
       document.getElementById('amountinput' + index).value = value.amount;
       document.getElementById('selectLogic' + index).value = value.type;
-
+      document.getElementById('attach' + index).value = value.attach;
+      if (typeof value.attach != 'undefined') {
+        if (value.attach = true) {
+          document.getElementById('attach' + index).checked = true;
+        } else {
+          document.getElementById('attach' + index).checked = false;
+        }
+      }
       // Delete alert
       document.getElementById('deleteBtn' + index).addEventListener('click', e => {
         console.log("remove " + index);
@@ -171,6 +189,11 @@
           value.name = document.getElementById('alertinput' + index).value;
           value.amount = document.getElementById('amountinput' + index).value;
           value.type = document.getElementById('selectLogic' + index).value;
+          if (document.getElementById('attach' + index).checked == true) {
+            value.attach = true;
+          } else {
+            value.attach = false;
+          }
       });
     }
 

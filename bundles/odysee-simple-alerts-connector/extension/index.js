@@ -1,6 +1,6 @@
 const WebSocket = require('ws');
-const got = require('got');
 const request = require('request');
+const got = require('got');
 'use strict';
 
 module.exports = function (nodecg) {
@@ -20,8 +20,12 @@ module.exports = function (nodecg) {
 	const equals = [];
 
 // simple-alerts Rest API Request to add on alert to queue
-	function activateAlert(alertname, username, amount) {
-		var myJSONObject = {"name": alertname, "message":"(" + username + ") tipped (" + amount + ") LBC"};
+	function activateAlert(alertname, username, amount, attach) {
+		if (attach != "") {
+			var myJSONObject = {"name": alertname, "message":"(" + username + ") tipped (" + amount + ") LBC", "attachMsg": attach};
+		} else {
+			var myJSONObject = {"name": alertname, "message":"(" + username + ") tipped (" + amount + ") LBC"};
+		}
 		request({
 				url: 'http://localhost:9090/simple-alerts/alert',
 				method: "POST",
@@ -106,35 +110,58 @@ module.exports = function (nodecg) {
 		return (alertName);
 	}
 
+	function hasAttach(alert) {
+		var attach = false;
+		for (const value of triggers.value) {
+			if (value.name == alert) {
+				if (typeof value.attach != 'undefined') {
+					if (value.attach == true) {
+						attach = true;
+						break;
+					}
+				}
+			}
+		}
+		return attach;
+	}
+
 	function preloadChat(claimid) {
+		var url = 'https://comments.lbry.com/api'
 		// Get comment history
-		var myJSONObject = {
+		var myJSONObject = `{
 			"jsonrpc": "2.0",
-			"id": null,
+			"id": "null",
 			"method": "get_claim_comments",
 			"params": {
-				"claim_id": claimid,
-				"page_size": 15,
+				"claim_id": "` + claimid + `",
+				"page_size": 5,
 				"is_channel_signature_valid": true,
 				"visible": true
 			}
-		};
-		request({
-				url: 'https://comments.lbry.com/api',
-				method: "POST",
-				json: true,
-				body: myJSONObject
-		}, function (error, response, body){
-				nodecg.log.info("Preloading Comment");
+		}`;
+		const response = got(
+			url,
+			{
+				timeout: 1000, retry: 1,
+				headers: {'Content-Type': 'application/json' },
+				body: myJSONObject, json: true
+			}
+		).then(res => {
+			nodecg.log.info("Preloading Comments");
 			(async function() {
 				try {
-						for (var i = 0, j = body.result.items.length - 1; i < body.result.items.length; i++, j--) {
-							await addComment(body.result.items[j]);
+						for (var i = 0, j = res.body.result.items.length - 1; i < res.body.result.items.length; i++, j--) {
+							if (await addComment(res.body.result.items[j]) == false) {
+								nodecg.log.info("Skipping comment preload");
+								break;
+							}
 						}
 					} catch {
-						nodecg.log.info("There does not appear to be any prevoius comments to load. Skipping...");
+						nodecg.log.info("There does not appear to be any previous comments to load. Skipping...");
 					}
 				})();
+		}).catch(err => {
+			nodecg.log.info("Timed out, not adding past message. LBRY API server might be down.");
 		});
 	}
 
@@ -149,21 +176,30 @@ module.exports = function (nodecg) {
 				"comment_id": "` + value.comment_id + `"
 			}
 		}`;
-			var username = "";
-			try {
-					const response = await got.post(url, { headers: {'Content-Type': 'application/json'}, body: myJSONObject, json: true});
-					username = response.body.result.channel_name;
-					var comment = value.comment;
-					if (value.support_amount > 0) {
-						var extra = { class: "tipmsg", message: "Tipped " + value.support_amount + " LBC"};
-					} else {
-						var extra = { class: "message-wrap", message: ""};
-					}
-					addhistory(username, comment, extra);
-					nodecg.log.info(username + ":" + comment);
-			} catch (error) {
-				nodecg.log.info("Failed to fetch get channel name.")
+		var username = "";
+		var success = true;
+		const response = await got.post(
+			url,
+			{
+				timeout: 1000, retry: 1,
+				headers: {'Content-Type': 'application/json' },
+				body: myJSONObject, json: true
 			}
+		).then(res => {
+			username = res.body.result.channel_name;
+			var comment = value.comment;
+			if (value.support_amount > 0) {
+				var extra = { class: "tipmsg", message: "Tipped " + value.support_amount + " LBC"};
+			} else {
+				var extra = { class: "message-wrap", message: ""};
+			}
+			addhistory(username, comment, extra);
+			nodecg.log.info(username + ":" + comment);
+		}).catch(err => {
+			success = false;
+			nodecg.log.info("Timed out, not adding past message. LBRY API server might be down.");
+		});
+		return success;
 	}
 
 	triggers.on('change', value => {
@@ -188,6 +224,7 @@ module.exports = function (nodecg) {
 
 	function isOpen() {
 		if (socket.readyState != WebSocket.OPEN) {
+			socket.close();
 			nodecg.log.info("Timed out, Reconnecting....");
 			getClaimid();
 		}
@@ -197,24 +234,26 @@ module.exports = function (nodecg) {
 		var url = "https://chainquery.lbry.com/api/sql?query=SELECT%20*%20FROM%20claim%20WHERE%20publisher_id=%22" + claim_id.value + "%22%20AND%20bid_state%3C%3E%22Spent%22%20AND%20claim_type=1%20AND%20source_hash%20IS%20NULL%20ORDER%20BY%20id%20DESC%20LIMIT%201";
 		var currentClaimid = (async () => {
 			try {
-					const response = await got(url, { json: true });
+					const response = await got(url, { json: true, timeout: 2000, retry: 1 });
 					if (response.body.data.length === 0) {
 						nodecg.log.info("Array is empty, assuming claim id is for livestream.");
+						//preloadChat(claim_id.value);
 						reconnect(claim_id.value);
 					} else {
 						nodecg.log.info("Array should have claim id");
 						nodecg.log.info(response.body.data[0].claim_id);
+						//preloadChat(response.body.data[0].claim_id);
 						reconnect(response.body.data[0].claim_id);
 					}
 			} catch (error) {
 				nodecg.log.info("Failed to fetch claim id from publisher id, assuming claim id is for livestream.")
+				//preloadChat(claim_id.value);
 				reconnect(claim_id.value);
 			}
 		})();
 	}
 
 	function reconnect(claimid) {
-		preloadChat(claimid);
 		nodecg.log.info("Connecting using " + claimid);
 		socket = new WebSocket('wss://comments.lbry.com/api/v2/live-chat/subscribe?subscription_id=' + claimid);
 		// Connection opened
@@ -238,7 +277,12 @@ module.exports = function (nodecg) {
 				addToGoal(amount);
 				addToTicker(userName, amount);
 				alertName = checkTriggers(amount, alertName);
-				activateAlert(alertName, userName, amount);
+				// Add if else to see if alert has attach enabled.
+				if (hasAttach(alertName) == true) {
+					activateAlert(alertName, userName, amount, msg);
+				} else {
+					activateAlert(alertName, userName, amount, "");
+				}
 				sendToLog(userName, msg, {class: "tipmsg", message: "Tipped " + amount + " LBC"});
 				addhistory(userName, msg, {class: "tipmsg", message: "Tipped " + amount + " LBC"});
 			} else {
@@ -263,7 +307,12 @@ module.exports = function (nodecg) {
 	test.on('change', value => {
 		var alertName = defaultTrigger.value;
 		alertName = checkTriggers(value.amount, alertName);
-		activateAlert(alertName, "Slyver Testallone", value.amount);
+		if (hasAttach(alertName) == true) {
+			nodecg.log.info("has attached message.")
+			activateAlert(alertName, "Slyver Testallone", value.amount, "Hello World, Is that a Bird, or a plane? No, its just Bob.");
+		} else {
+			activateAlert(alertName, "Slyver Testallone", value.amount, "");
+		}
 	});
 
 };
